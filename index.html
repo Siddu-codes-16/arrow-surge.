@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
+<title>ARROW SURGE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Rajdhani',sans-serif}
+body{display:flex;align-items:center;justify-content:center}
+
+#app{
+  position:relative;width:100%;max-width:420px;
+  height:100svh;overflow:hidden;
+}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* scanlines */
+body::after{content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,rgba(0,0,0,.1) 3px,rgba(0,0,0,.1) 4px);
+  pointer-events:none;z-index:999}
+
+/* ── SCREENS ── */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:20px;
+  transition:opacity .35s,transform .35s;z-index:10}
+.screen.hidden{opacity:0;pointer-events:none;transform:scale(.95)}
+
+.glass{background:rgba(4,4,18,.7);backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.08);border-radius:18px;
+  padding:28px 24px;width:100%;max-width:320px;
+  box-shadow:0 0 50px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.06)}
+
+/* logo */
+.logo{font-family:'Orbitron',sans-serif;font-weight:900;
+  font-size:clamp(2rem,9vw,2.8rem);letter-spacing:.1em;
+  text-align:center;line-height:1.1;margin-bottom:4px}
+.sub{font-size:.6rem;letter-spacing:.35em;color:rgba(255,255,255,.28);
+  text-align:center;margin-bottom:24px;text-transform:uppercase}
+
+/* theme dots */
+.row-label{font-size:.55rem;letter-spacing:.3em;color:rgba(255,255,255,.3);
+  text-align:center;margin-bottom:10px;text-transform:uppercase}
+.theme-row{display:flex;gap:10px;justify-content:center;margin-bottom:18px}
+.tdot{width:32px;height:32px;border-radius:50%;cursor:pointer;border:2px solid transparent;
+  transition:transform .2s,box-shadow .2s}
+.tdot:hover{transform:scale(1.18)}
+.tdot.active{border-color:#fff;box-shadow:0 0 10px currentColor}
+.tdot[data-t=cyber]{background:radial-gradient(#ff2fff,#7700ff);color:#ff2fff}
+.tdot[data-t=space]{background:radial-gradient(#00f7ff,#0033ff);color:#00f7ff}
+.tdot[data-t=vapor]{background:radial-gradient(#ff6ec7,#ff9a3c);color:#ff6ec7}
+.tdot[data-t=matrix]{background:radial-gradient(#00ff88,#006622);color:#00ff88}
+.tdot[data-t=blood]{background:radial-gradient(#ff4444,#660000);color:#ff4444}
+
+/* difficulty */
+.diff-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.dbtn{padding:10px 6px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);color:rgba(255,255,255,.5);
+  font-family:'Rajdhani',sans-serif;font-size:.75rem;letter-spacing:.15em;
+  border-radius:8px;cursor:pointer;transition:all .2s;text-transform:uppercase;text-align:center}
+.dbtn:hover{background:rgba(255,255,255,.1);color:#fff}
+.dbtn.active{color:#000;font-weight:700}
+
+/* buttons */
+.btn{width:100%;padding:15px;font-family:'Orbitron',sans-serif;
+  font-size:.82rem;font-weight:700;letter-spacing:.2em;
+  border:none;border-radius:10px;cursor:pointer;
+  transition:transform .15s,filter .15s;color:#000;margin-bottom:8px}
+.btn:active{transform:scale(.97)}
+.btn:hover{filter:brightness(1.15)}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.55);font-size:.72rem;padding:11px}
+.btn-ghost:hover{background:rgba(255,255,255,.08);color:#fff}
+
+/* HUD */
+#hud{position:absolute;top:0;left:0;right:0;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:14px 18px 0;z-index:5;pointer-events:none}
+#hud.hidden{display:none}
+.hv{font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:700;color:#fff;line-height:1}
+.hl{font-size:.5rem;letter-spacing:.3em;color:rgba(255,255,255,.3);text-transform:uppercase}
+
+/* lives */
+#lives{position:absolute;top:54px;left:50%;transform:translateX(-50%);
+  z-index:5;pointer-events:none;display:flex;gap:6px}
+#lives.hidden{display:none}
+.life-dot{width:10px;height:10px;border-radius:50%;transition:opacity .3s}
+.life-dot.dead{opacity:.15}
+
+/* on-screen arrows */
+#dpad{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  z-index:6;display:none}
+.dpad-grid{display:grid;grid-template-columns:56px 56px 56px;
+  grid-template-rows:56px 56px;gap:6px}
+.akey{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
+  border-radius:10px;color:rgba(255,255,255,.7);font-size:1.3rem;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+  transition:background .1s;touch-action:none}
+.akey:active,.akey.pressed{background:rgba(255,255,255,.22)}
+#dpad.show{display:block}
+
+/* pause */
+#pauseBtn{position:absolute;top:14px;right:16px;z-index:6;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.5);width:34px;height:34px;border-radius:8px;
+  cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center}
+#pauseBtn.hidden{display:none}
+
+/* go score */
+.go-s{font-family:'Orbitron',sans-serif;font-size:2.8rem;font-weight:900;
+  text-align:center;line-height:1;margin-bottom:4px}
+.go-sub{font-size:.62rem;letter-spacing:.25em;color:rgba(255,255,255,.3);
+  text-align:center;margin-bottom:20px}
+.stats-row{display:flex;gap:1px;border-radius:8px;overflow:hidden;margin-bottom:20px}
+.stat{flex:1;background:rgba(255,255,255,.05);padding:10px 6px;text-align:center}
+.stat-l{font-size:.48rem;letter-spacing:.2em;color:rgba(255,255,255,.3);margin-bottom:3px;text-transform:uppercase}
+.stat-v{font-family:'Orbitron',sans-serif;font-size:.85rem;font-weight:700;color:rgba(255,255,255,.8)}
+.badge{display:inline-block;padding:3px 12px;border-radius:20px;
+  font-size:.55rem;letter-spacing:.2em;font-weight:700;
+  margin-bottom:14px;color:#000;animation:pop .4s cubic-bezier(.18,.89,.32,1.28) both}
+.badge.hidden{display:none}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+
+/* diff badge on HUD */
+#diffBadge{position:absolute;top:54px;right:16px;z-index:5;
+  font-size:.5rem;letter-spacing:.2em;padding:3px 9px;
+  border-radius:20px;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);
+  pointer-events:none}
+#diffBadge.hidden{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+<canvas id="c"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div><div class="hl">Score</div><div class="hv" id="hScore">0</div></div>
+  <div style="text-align:right"><div class="hl">Best</div><div class="hv" id="hBest" style="font-size:.9rem;color:rgba(255,255,255,.4)">0</div></div>
+</div>
+<div id="lives" class="hidden">
+  <div class="life-dot" id="l1"></div>
+  <div class="life-dot" id="l2"></div>
+  <div class="life-dot" id="l3"></div>
+</div>
+<div id="diffBadge" class="hidden">EASY</div>
+<button id="pauseBtn" class="hidden">⏸</button>
+
+<!-- D-PAD -->
+<div id="dpad">
+  <div class="dpad-grid">
+    <div></div>
+    <div class="akey" id="aUp">▲</div>
+    <div></div>
+    <div class="akey" id="aLeft">◀</div>
+    <div class="akey" id="aDown">▼</div>
+    <div class="akey" id="aRight">▶</div>
+  </div>
+</div>
+
+<!-- MENU -->
+<div class="screen" id="sMenu">
+  <div class="glass">
+    <div class="logo" id="menuLogo">SIDDU'S<br>ARROW-SURGE!</div>
+    <div class="sub">Navigate · Survive · Score</div>
+
+    <div class="row-label">Theme</div>
+    <div class="theme-row">
+      <div class="tdot active" data-t="cyber"></div>
+      <div class="tdot" data-t="space"></div>
+      <div class="tdot" data-t="vapor"></div>
+      <div class="tdot" data-t="matrix"></div>
+      <div class="tdot" data-t="blood"></div>
+    </div>
+
+    <div class="row-label">Difficulty</div>
+    <div class="diff-row">
+      <div class="dbtn active" data-d="easy">🟢 Easy</div>
+      <div class="dbtn" data-d="hard">🟡 Hard</div>
+      <div class="dbtn" data-d="insane">🔴 Insane</div>
+      <div class="dbtn" data-d="nightmare">💀 Nightmare</div>
+    </div>
+
+    <button class="btn" id="btnPlay">▶ &nbsp;PLAY</button>
+    <button class="btn btn-ghost" id="btnHow">HOW TO PLAY</button>
+  </div>
+</div>
+
+<!-- HOW TO -->
+<div class="screen hidden" id="sHow">
+  <div class="glass">
+    <div style="font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;
+      text-align:center;letter-spacing:.2em;color:#fff;margin-bottom:20px">HOW TO PLAY</div>
+    <div style="display:flex;flex-direction:column;gap:13px;margin-bottom:24px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,.06);
+          display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🎯</div>
+        <div><div style="color:#fff;font-size:.88rem;font-weight:600">Navigate the Ship</div>
+          <div style="color:rgba(255,255,255,.38);font-size:.7rem;margin-top:2px">Use arrow keys or on-screen pad</div></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,.06);
+          display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🧱</div>
+        <div><div style="color:#fff;font-size:.88rem;font-weight:600">Pass Through Gaps</div>
+          <div style="color:rgba(255,255,255,.38);font-size:.7rem;margin-top:2px">Walls have a gap — find it fast</div></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,.06);
+          display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">❤️</div>
+        <div><div style="color:#fff;font-size:.88rem;font-weight:600">3 Lives</div>
+          <div style="color:rgba(255,255,255,.38);font-size:.7rem;margin-top:2px">Each crash costs one — survive!</div></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,.06);
+          display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">⚡</div>
+        <div><div style="color:#fff;font-size:.88rem;font-weight:600">Speed Increases</div>
+          <div style="color:rgba(255,255,255,.38);font-size:.7rem;margin-top:2px">Gaps get narrower over time</div></div>
+      </div>
+    </div>
+    <button class="btn" id="btnHowBack">GOT IT</button>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="screen hidden" id="sOver">
+  <div class="glass">
+    <div style="font-family:'Orbitron',sans-serif;font-size:.7rem;letter-spacing:.35em;
+      color:rgba(255,255,255,.3);text-align:center;margin-bottom:12px">GAME OVER</div>
+    <div class="badge hidden" id="newBest">🏆 NEW BEST!</div>
+    <div class="go-s" id="goScore">0</div>
+    <div class="go-sub">Best: <span id="goBest">0</span></div>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-l">Time</div><div class="stat-v" id="goTime">0s</div></div>
+      <div class="stat"><div class="stat-l">Walls</div><div class="stat-v" id="goWalls">0</div></div>
+      <div class="stat"><div class="stat-l">Level</div><div class="stat-v" id="goLevel">1</div></div>
+    </div>
+    <button class="btn" id="btnRetry">↩ &nbsp;RETRY</button>
+    <button class="btn btn-ghost" id="btnMenu">MAIN MENU</button>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div class="screen hidden" id="sPause">
+  <div class="glass" style="text-align:center">
+    <div style="font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;
+      letter-spacing:.25em;color:#fff;margin-bottom:6px">PAUSED</div>
+    <div style="font-size:.62rem;letter-spacing:.2em;color:rgba(255,255,255,.28);
+      margin-bottom:24px;text-transform:uppercase">Game in progress</div>
+    <button class="btn" id="btnResume">▶ &nbsp;RESUME</button>
+    <button class="btn btn-ghost" id="btnMenuPause">MAIN MENU</button>
+  </div>
+</div>
+
+<script>
+(()=>{
+// ── THEMES ──
+const T = {
+  cyber:{ bg1:'#07000f', bg2:'#120020', ship:'#ff2fff', shipGlow:'#c000ff',
+    wall:'#ff2fff', wallGlow:'#9900cc', grid:'rgba(180,0,255,.1)',
+    edge:'rgba(200,0,255,.5)', particle:['#ff2fff','#c000ff','#ff80ff'],
+    logo:'#ff2fff', logoShadow:'#c000ff', btn:'linear-gradient(135deg,#ff2fff,#7700ff)',
+    dbtnActive:'#ff2fff' },
+  space:{ bg1:'#00020f', bg2:'#000820', ship:'#00f7ff', shipGlow:'#0060ff',
+    wall:'#00f7ff', wallGlow:'#0050ff', grid:'rgba(0,100,255,.1)',
+    edge:'rgba(0,180,255,.5)', particle:['#00f7ff','#0070ff','#80ddff'],
+    logo:'#00f7ff', logoShadow:'#0050ff', btn:'linear-gradient(135deg,#00f7ff,#0030ff)',
+    dbtnActive:'#00f7ff' },
+  vapor:{ bg1:'#120008', bg2:'#1e000e', ship:'#ff6ec7', shipGlow:'#ff3a9d',
+    wall:'#ff6ec7', wallGlow:'#ff9a3c', grid:'rgba(255,80,180,.09)',
+    edge:'rgba(255,150,80,.5)', particle:['#ff6ec7','#ff9a3c','#ffeb3b'],
+    logo:'#ff6ec7', logoShadow:'#ff3a9d', btn:'linear-gradient(135deg,#ff6ec7,#ff9a3c)',
+    dbtnActive:'#ff6ec7' },
+  matrix:{ bg1:'#000a02', bg2:'#001508', ship:'#00ff88', shipGlow:'#00cc44',
+    wall:'#00ff88', wallGlow:'#00cc44', grid:'rgba(0,200,60,.09)',
+    edge:'rgba(0,255,100,.4)', particle:['#00ff88','#00cc44','#80ffbb'],
+    logo:'#00ff88', logoShadow:'#00cc44', btn:'linear-gradient(135deg,#00ff88,#006622)',
+    dbtnActive:'#00ff88' },
+  blood:{ bg1:'#0a0000', bg2:'#1a0000', ship:'#ff4444', shipGlow:'#cc0000',
+    wall:'#ff4444', wallGlow:'#cc0000', grid:'rgba(200,0,0,.09)',
+    edge:'rgba(255,40,40,.45)', particle:['#ff4444','#ff8888','#cc0000'],
+    logo:'#ff4444', logoShadow:'#cc0000', btn:'linear-gradient(135deg,#ff4444,#660000)',
+    dbtnActive:'#ff4444' }
+};
+
+// ── DIFFICULTY ──
+const DIFF = {
+  easy:      { speed:2.2,  wallGap:0.44, wallH:16, spawnRate:100, scoreRate:1,   incr:0.0008 },
+  hard:      { speed:3.5,  wallGap:0.32, wallH:18, spawnRate:75,  scoreRate:1.8, incr:0.0015 },
+  insane:    { speed:5.2,  wallGap:0.22, wallH:20, spawnRate:55,  scoreRate:3,   incr:0.0025 },
+  nightmare: { speed:7.5,  wallGap:0.14, wallH:22, spawnRate:38,  scoreRate:5,   incr:0.004  }
+};
+
+let theme = 'cyber', diff = 'easy';
+let state = 'menu'; // menu | play | pause | over
+let W, H;
+
+const app    = document.getElementById('app');
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+function resize(){ const r=app.getBoundingClientRect(); W=canvas.width=r.width; H=canvas.height=r.height; }
+resize(); window.addEventListener('resize', resize);
+
+// ── GAME STATE ──
+const ship   = { x:0, y:0, w:20, h:24, vx:0, vy:0 };
+const keys   = { up:false, down:false, left:false, right:false };
+const walls  = [];
+const sparks = [];
+let score=0, best=parseInt(localStorage.getItem('as_best')||'0');
+let lives=3, gameTime=0, wallsPassed=0, level=1, spawnTimer=0;
+let curSpeed=0, curGap=0, raf, lastT=0, shakeT=0, invincible=0;
+let frameN=0;
+
+// ── SHIP SHAPE ──
+function drawShip(x,y,th){
+  const c=T[theme];
+  ctx.save();
+  ctx.shadowColor=c.shipGlow; ctx.shadowBlur=22;
+  ctx.strokeStyle=c.ship; ctx.lineWidth=2.2;
+  ctx.fillStyle=c.ship+'33';
+  // diamond/arrow shape
+  ctx.beginPath();
+  ctx.moveTo(x, y - ship.h/2);         // top
+  ctx.lineTo(x + ship.w/2, y + ship.h/4);
+  ctx.lineTo(x, y + ship.h/2 - 4);     // bottom center
+  ctx.lineTo(x - ship.w/2, y + ship.h/4);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // engine glow
+  ctx.shadowBlur=10; ctx.fillStyle=c.ship+'99';
+  ctx.beginPath(); ctx.arc(x, y+ship.h/2-3, 3.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  // if invincible, flicker
+  if(invincible>0 && Math.floor(invincible/4)%2===0){
+    ctx.save(); ctx.globalAlpha=.3; ctx.fillStyle='#fff';
+    ctx.beginPath();
+    ctx.moveTo(x,y-ship.h/2); ctx.lineTo(x+ship.w/2,y+ship.h/4);
+    ctx.lineTo(x,y+ship.h/2-4); ctx.lineTo(x-ship.w/2,y+ship.h/4);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+}
+
+// ── DRAW WALL ──
+function drawWall(w){
+  const c=T[theme];
+  ctx.save();
+  ctx.shadowColor=c.wallGlow; ctx.shadowBlur=14;
+  ctx.fillStyle=c.wall;
+  // left segment
+  if(w.gapX > 0){
+    ctx.fillRect(0, w.y, w.gapX, w.h);
+  }
+  // right segment
+  const rightStart = w.gapX + w.gapW;
+  if(rightStart < W){
+    ctx.fillRect(rightStart, w.y, W - rightStart, w.h);
+  }
+  // edge glow line top
+  ctx.shadowBlur=20; ctx.strokeStyle=c.edge; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, w.y); ctx.lineTo(w.gapX, w.y);
+  ctx.moveTo(rightStart, w.y); ctx.lineTo(W, w.y);
+  ctx.stroke();
+  ctx.restore();
+
+  // moving walls: draw inner moving segment
+  if(w.moving){
+    const mX = w.gapX + w.moveOffset;
+    ctx.save();
+    ctx.shadowColor=c.wallGlow; ctx.shadowBlur=12;
+    ctx.fillStyle=c.wall+'cc';
+    ctx.fillRect(mX, w.y, w.blockW, w.h);
+    ctx.strokeStyle=c.edge; ctx.lineWidth=1;
+    ctx.strokeRect(mX, w.y, w.blockW, w.h);
+    ctx.restore();
+  }
+}
+
+// ── SPARKS ──
+function burst(x,y){
+  const c=T[theme];
+  for(let i=0;i<22;i++){
+    const a=Math.random()*Math.PI*2, s=1.5+Math.random()*3.5;
+    sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      life:1,decay:.035+Math.random()*.03,
+      r:1.5+Math.random()*2.5,
+      col:c.particle[Math.floor(Math.random()*c.particle.length)]});
+  }
+}
+
+// ── SPAWN WALL ──
+function spawnWall(){
+  const gapFrac = curGap;
+  const gapW    = W * gapFrac;
+  const gapX    = Math.random() * (W - gapW);
+  const cfg     = DIFF[diff];
+  const isMoving= (diff==='insane'||diff==='nightmare') && Math.random()<.4;
+  walls.push({
+    y: -cfg.wallH, h: cfg.wallH,
+    gapX, gapW,
+    passed: false,
+    moving: isMoving,
+    moveDir: 1,
+    moveOffset: 0,
+    moveSpeed: 1.2 + Math.random() * 1.5,
+    blockW: gapW * .35
+  });
+}
+
+// ── INIT GAME ──
+function initGame(){
+  resize();
+  ship.x = W/2; ship.y = H*0.65;
+  ship.vx=0; ship.vy=0;
+  walls.length=0; sparks.length=0;
+  score=0; gameTime=0; wallsPassed=0; level=1;
+  lives=3; invincible=0; shakeT=0; frameN=0;
+  curSpeed = DIFF[diff].speed;
+  curGap   = DIFF[diff].wallGap;
+  spawnTimer = DIFF[diff].spawnRate * .5;
+  updateHUD();
+  updateLives();
+  document.getElementById('diffBadge').textContent = diff.toUpperCase();
+}
+
+function updateHUD(){
+  document.getElementById('hScore').textContent = Math.floor(score);
+  document.getElementById('hBest').textContent  = best;
+}
+
+function updateLives(){
+  for(let i=1;i<=3;i++){
+    document.getElementById('l'+i).classList.toggle('dead', i > lives);
+  }
+  const c=T[theme];
+  document.querySelectorAll('.life-dot:not(.dead)').forEach(d=>d.style.background=c.ship);
+}
+
+// ── DRAW BG ──
+function drawBg(){
+  const c=T[theme];
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,c.bg1); g.addColorStop(1,c.bg2);
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // subtle grid
+  ctx.save(); ctx.strokeStyle=c.grid; ctx.lineWidth=.6;
+  const gs=40;
+  for(let x=0;x<W;x+=gs){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=frameN%gs;y<H;y+=gs){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+  // vignette
+  const vig=ctx.createRadialGradient(W/2,H/2,H*.2,W/2,H/2,H*.85);
+  vig.addColorStop(0,'transparent'); vig.addColorStop(1,'rgba(0,0,0,.6)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+}
+
+// ── COLLISION ──
+function hitTest(w){
+  const sx=ship.x, sy=ship.y;
+  const hw=ship.w/2-3, hh=ship.h/2-3;
+  // simple AABB
+  const sx1=sx-hw, sx2=sx+hw, sy1=sy-hh, sy2=sy+hh;
+  const wy1=w.y, wy2=w.y+w.h;
+  if(sy2<wy1||sy1>wy2) return false;
+  // left block
+  if(sx1<w.gapX && sy2>wy1 && sy1<wy2) return true;
+  // right block
+  const rs=w.gapX+w.gapW;
+  if(sx2>rs && sy2>wy1 && sy1<wy2) return true;
+  // moving block
+  if(w.moving){
+    const mx=w.gapX+w.moveOffset, mx2=mx+w.blockW;
+    if(sx2>mx && sx1<mx2 && sy2>wy1 && sy1<wy2) return true;
+  }
+  return false;
+}
+
+// ── MAIN LOOP ──
+function loop(ts){
+  if(state!=='play') return;
+  raf=requestAnimationFrame(loop);
+  const dt=Math.min((ts-lastT)/16.67,3); lastT=ts; frameN++;
+
+  // time & level
+  gameTime+=dt/60;
+  level=1+Math.floor(gameTime/12);
+  curSpeed = DIFF[diff].speed + DIFF[diff].incr * frameN;
+  curGap   = Math.max(DIFF[diff].wallGap - frameN*0.00008, 0.10);
+
+  // ship movement
+  const ACCEL=.6, MAXV=5.5, DRAG=.78;
+  if(keys.left)  ship.vx-=ACCEL;
+  if(keys.right) ship.vx+=ACCEL;
+  if(keys.up)    ship.vy-=ACCEL;
+  if(keys.down)  ship.vy+=ACCEL;
+  if(!keys.left&&!keys.right) ship.vx*=DRAG;
+  if(!keys.up&&!keys.down)    ship.vy*=DRAG;
+  ship.vx=Math.max(-MAXV,Math.min(MAXV,ship.vx));
+  ship.vy=Math.max(-MAXV,Math.min(MAXV,ship.vy));
+  ship.x+=ship.vx; ship.y+=ship.vy;
+  // clamp
+  ship.x=Math.max(ship.w/2,Math.min(W-ship.w/2,ship.x));
+  ship.y=Math.max(ship.h/2,Math.min(H-ship.h/2-80,ship.y));
+
+  // spawn
+  spawnTimer-=dt;
+  if(spawnTimer<=0){ spawnWall(); spawnTimer=Math.max(28,DIFF[diff].spawnRate-frameN*.05); }
+
+  // update walls
+  walls.forEach(w=>{
+    w.y+=curSpeed*dt;
+    if(w.moving){
+      w.moveOffset+=w.moveDir*w.moveSpeed*dt;
+      if(w.moveOffset>w.gapW*.5||w.moveOffset<-w.gapW*.4) w.moveDir*=-1;
+    }
+    if(!w.passed && w.y+w.h > ship.y){
+      w.passed=true; wallsPassed++;
+      score+=10*DIFF[diff].scoreRate*(1+level*.3);
+    }
+  });
+
+  // collision
+  if(invincible>0) invincible-=dt;
+  else {
+    walls.forEach(w=>{
+      if(hitTest(w)){
+        lives--;
+        burst(ship.x,ship.y);
+        shakeT=18; invincible=90;
+        updateLives();
+        if(lives<=0){ setTimeout(endGame,300); }
+      }
+    });
+  }
+
+  // score by time
+  score+=DIFF[diff].scoreRate*dt*.4;
+  updateHUD();
+
+  // sparks
+  sparks.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.life-=p.decay; p.vy+=.06; });
+  for(let i=sparks.length-1;i>=0;i--) if(sparks[i].life<=0) sparks.splice(i,1);
+
+  // clean old walls
+  for(let i=walls.length-1;i>=0;i--) if(walls[i].y>H+30) walls.splice(i,1);
+
+  // ── DRAW ──
+  ctx.save();
+  if(shakeT>0){ shakeT-=dt; ctx.translate((Math.random()-.5)*8,(Math.random()-.5)*8); }
+  drawBg();
+  walls.forEach(drawWall);
+  sparks.forEach(p=>{
+    ctx.save(); ctx.globalAlpha=p.life*.8;
+    ctx.shadowColor=p.col; ctx.shadowBlur=8;
+    ctx.fillStyle=p.col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+  drawShip(ship.x,ship.y,theme);
+  // engine trail
+  if(frameN%3===0){
+    const c=T[theme];
+    sparks.push({x:ship.x+(Math.random()-.5)*4,y:ship.y+ship.h/2-2,
+      vx:(Math.random()-.5)*.8,vy:.5+Math.random(),
+      life:.7,decay:.055,r:1.2,col:c.particle[2]||c.particle[0]});
+  }
+  ctx.restore();
+}
+
+function endGame(){
+  cancelAnimationFrame(raf);
+  state='over';
+  const sc=Math.floor(score);
+  const isNew=sc>best;
+  if(isNew){ best=sc; localStorage.setItem('as_best',best); }
+  document.getElementById('goScore').textContent=sc;
+  document.getElementById('goScore').style.color=T[theme].ship;
+  document.getElementById('goScore').style.textShadow=`0 0 20px ${T[theme].ship}`;
+  document.getElementById('goBest').textContent=best;
+  document.getElementById('goTime').textContent=Math.floor(gameTime)+'s';
+  document.getElementById('goWalls').textContent=wallsPassed;
+  document.getElementById('goLevel').textContent=level;
+  const b=document.getElementById('newBest');
+  if(isNew){ b.classList.remove('hidden'); b.style.background=T[theme].btn; }
+  else b.classList.add('hidden');
+  showHUD(false);
+  show('sOver');
+}
+
+// ── SCREENS ──
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  if(id) document.getElementById(id).classList.remove('hidden');
+}
+function showHUD(v){
+  document.getElementById('hud').classList.toggle('hidden',!v);
+  document.getElementById('lives').classList.toggle('hidden',!v);
+  document.getElementById('diffBadge').classList.toggle('hidden',!v);
+  document.getElementById('pauseBtn').classList.toggle('hidden',!v);
+  document.getElementById('dpad').classList.toggle('show', v);
+}
+
+// ── APPLY THEME ──
+function applyTheme(t){
+  theme=t;
+  const c=T[t];
+  document.querySelectorAll('.btn').forEach(b=>{ if(!b.classList.contains('btn-ghost')) b.style.background=c.btn; });
+  const logo=document.getElementById('menuLogo');
+  logo.style.color=c.logo; logo.style.textShadow=`0 0 12px ${c.logoShadow},0 0 40px ${c.logoShadow}`;
+  document.querySelectorAll('.dbtn.active').forEach(d=>{ d.style.background=c.dbtnActive; });
+}
+
+// ── KEYBOARD ──
+const KM={ArrowUp:'up',ArrowLeft:'left',ArrowRight:'right',ArrowDown:'down',
+  w:'up',a:'left',d:'right',s:'down',W:'up',A:'left',D:'right',S:'down'};
+window.addEventListener('keydown',e=>{
+  if(KM[e.key]) keys[KM[e.key]]=true;
+  if(e.key==='p'||e.key==='Escape') togglePause();
+  if([' ',...Object.keys(KM)].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup',e=>{ if(KM[e.key]) keys[KM[e.key]]=false; });
+
+// ── D-PAD ──
+function dpadKey(dir, down){
+  document.getElementById('a'+dir.charAt(0).toUpperCase()+dir.slice(1))?.classList.toggle('pressed',down);
+  keys[dir]=down;
+}
+[['aUp','up'],['aDown','down'],['aLeft','left'],['aRight','right']].forEach(([id,dir])=>{
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('touchstart',e=>{e.preventDefault();dpadKey(dir,true)},{passive:false});
+  el.addEventListener('touchend',  e=>{e.preventDefault();dpadKey(dir,false)},{passive:false});
+  el.addEventListener('mousedown', ()=>dpadKey(dir,true));
+  window.addEventListener('mouseup', ()=>dpadKey(dir,false));
+});
+
+// ── PAUSE ──
+function togglePause(){
+  if(state==='play'){
+    state='pause'; cancelAnimationFrame(raf); show('sPause');
+  }
+}
+document.getElementById('pauseBtn').addEventListener('click',togglePause);
+document.getElementById('btnResume').addEventListener('click',()=>{
+  state='play'; show(null); lastT=performance.now(); raf=requestAnimationFrame(loop);
+});
+document.getElementById('btnMenuPause').addEventListener('click',()=>{
+  cancelAnimationFrame(raf); state='menu'; showHUD(false); show('sMenu');
+});
+
+// ── THEME PICKER ──
+document.querySelectorAll('.tdot').forEach(d=>{
+  d.addEventListener('click',()=>{
+    document.querySelectorAll('.tdot').forEach(x=>x.classList.remove('active'));
+    d.classList.add('active'); applyTheme(d.dataset.t);
+  });
+});
+
+// ── DIFF PICKER ──
+document.querySelectorAll('.dbtn').forEach(d=>{
+  d.addEventListener('click',()=>{
+    document.querySelectorAll('.dbtn').forEach(x=>{ x.classList.remove('active'); x.style.background=''; });
+    d.classList.add('active'); d.style.background=T[theme].dbtnActive;
+    diff=d.dataset.d;
+  });
+});
+
+// ── BUTTONS ──
+function startGame(){
+  show(null); showHUD(true);
+  initGame(); state='play';
+  lastT=performance.now(); raf=requestAnimationFrame(loop);
+}
+document.getElementById('btnPlay').addEventListener('click',startGame);
+document.getElementById('btnRetry').addEventListener('click',startGame);
+document.getElementById('btnHow').addEventListener('click',()=>show('sHow'));
+document.getElementById('btnHowBack').addEventListener('click',()=>show('sMenu'));
+document.getElementById('btnMenu').addEventListener('click',()=>{ state='menu'; showHUD(false); show('sMenu'); });
+
+// ── INIT ──
+applyTheme('cyber');
+show('sMenu');
+
+})();
+</script>
+</body>
+</html>
