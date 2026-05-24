@@ -2,7 +2,7 @@
 
 > A neon arcade survival game — navigate your ship through endless walls and survive as long as possible.
 
-**Live Demo:** `https://your-project.vercel.app` <!-- Replace with your Vercel URL -->
+**Live Demo:**  
 
 ---
 
@@ -58,33 +58,6 @@ No backend. No dependencies. No build step.
 
 ## 🚀 Deploy to Vercel
 
-### 1. Fork or Clone this repo
-
-```bash
-git clone https://github.com/YOUR_USERNAME/arrow-surge.git
-cd arrow-surge
-```
-
-### 2. Push to GitHub
-
-```bash
-git add .
-git commit -m "Initial commit"
-git push origin main
-```
-
-### 3. Deploy on Vercel
-
-1. Go to [vercel.com](https://vercel.com) and sign in with GitHub
-2. Click **"Add New Project"**
-3. Import this repository
-4. Set **Framework Preset** → `Other`
-5. Leave Build Command and Output Directory **empty**
-6. Click **Deploy** ✅
-
-Your game goes live in about 1 minute.
-
----
 
 ## 📁 Project Structure
 
@@ -107,19 +80,9 @@ arrow-surge/
 
 ---
 
-## 📸 Screenshots
-
-<!-- Add screenshots here after deploying -->
-> _Add your own screenshots by taking them after deployment and uploading to this repo._
-
----
-
 ## 📄 License
 
 This project is open source and free to use.
 
 ---
 
-## 🙌 Credits
-
-Designed and built with [Claude](https://claude.ai) by Anthropic.
